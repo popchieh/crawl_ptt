@@ -13,13 +13,13 @@ var http = require('http'),
 	
 	//database settigns
 	dbserver = "localhost",
-	dbport = 3001,
+	dbport = 27017,
 	dbname = "ptt_boards",
 	mongodb = require('mongodb'),
 	mongodbServer = new mongodb.Server(dbserver, dbport, { safe: false }),
 
 	//server settings
-	svrport = 977,
+	svrport = 9770,
 
 	//cronjob settings
 	boards = [
@@ -250,16 +250,20 @@ var fetchPosts = function(url, callback) {
 
 	var stop = false;
 	jsdom.env(converter_url+"?timestamp="+new Date().getTime()+"&url="+url, function (errors, window) {
-		var arr = window.document.getElementById('prodlist').children[1].getElementsByTagName('dd');
+		$ = require('jquery/dist/jquery')(window);
+		var arr = $(".r-ent");
+
 		for(var i=arr.length-1;i>=0;i--) {
-			var attrs = $(arr[i]).find("td"); // id|push|date|author|title
-			var link = $(attrs[5]).find("a").prop("href").replace("localhost", "www.ptt.cc");
+			var link = $(".title").eq(i).children("a").attr("href");
+
 			//console.log(link);
 
-			if(link.search(".deleted") == -1) {
+			var author = $(".author").eq(i).html();
+			//console.log(author);
+
+			if(author != "-") {
 				var postDate = fc.toDate(link.match(/M.[^.]*/)[0].replace(/M./g, ""));
 				//console.log("post date:"+postDate+"|full date:"+fullDate);
-
 				if(fc.toTimestamp(postDate) < fc.toTimestamp(fullDate)) {
 					stop = true;
 					postArray.push(postsInBoard);
@@ -270,9 +274,10 @@ var fetchPosts = function(url, callback) {
 					stop = false;
 				}
 				else {
-					var id = $(attrs[0]).html();
-					var push = ($(attrs[2]).html()==' ')?'0':$(attrs[2]).html();
-					var title = $(attrs[5]).find("a").html();
+					var id = author;
+					var push = ($(".nrec").eq(i).text()==' ')?'0':$(".nrec").eq(i).text();
+					var title = $(".title").eq(i).html();
+
 					if(push >= pushIWant && title.search("刪除") == -1) {
 						//console.log("push entry "+id);
 
@@ -287,9 +292,8 @@ var fetchPosts = function(url, callback) {
 			}
 		}
 		if(totalPage == 0) {
-			totalPage = window.document.getElementById('prodlist').children[0].innerHTML.
-			match(/ [0-9]{3,4} /)[0].
-			replace(/ /g, "");
+			totalPage = $(".action-bar").children(".btn-group").eq(1).children(".btn").eq(1).attr("href").match(/index[0-9]*/)[0].replace("index", "");
+			totalPage = parseInt(totalPage)+1;
 		}
 		totalPage -= 1;
 		//rescursive
@@ -323,7 +327,11 @@ var routine = function() {
 				//console.log(data);
 				if(data.length == 0) {
 					console.log("Insert Collection")
-					collection.insert({});
+					//collection.insert({});
+					collection.insert({}, function(err, inserted) {
+						console.log("err: "+err)
+						console.log("inserted: "+inserted)
+					});
 				}
 				console.log("Database check complete!")
 				console.log("------------------------------------------")
